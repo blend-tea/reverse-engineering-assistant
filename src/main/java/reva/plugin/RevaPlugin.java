@@ -28,6 +28,7 @@ import ghidra.util.Msg;
 import reva.services.RevaMcpService;
 import reva.ui.RevaProvider;
 import reva.util.RevaInternalServiceRegistry;
+import reva.server.McpServerManager;
 
 /**
  * ReVa (Reverse Engineering Assistant) tool plugin for Ghidra.
@@ -67,6 +68,18 @@ public class RevaPlugin extends ProgramPlugin {
         // Fallback for testing environments where ApplicationLevelPlugin isn't available
         if (mcpService == null) {
             mcpService = RevaInternalServiceRegistry.getService(RevaMcpService.class);
+        }
+
+        // Last-resort fallback: start a local server manager in this tool if application-level service is unavailable
+        if (mcpService == null) {
+            Msg.warn(this, "RevaMcpService not provided by application; starting local fallback server in this tool");
+            McpServerManager localServer = new McpServerManager(tool);
+            localServer.startServer();
+            mcpService = localServer;
+
+            // Expose via internal registry so other components can find it
+            RevaInternalServiceRegistry.registerService(RevaMcpService.class, localServer);
+            RevaInternalServiceRegistry.registerService(McpServerManager.class, localServer);
         }
 
         if (mcpService == null) {
